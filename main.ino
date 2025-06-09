@@ -8,8 +8,9 @@
 #define lightSensorPin 23
 #define servoStartPin 14
 #define btnStartPin 4
-#define lightSensorSensitivity 0.95
+#define lightSensorSensitivity 0.85 //UNUSED
 #define timeoutTime 40000 //ms
+#define servoAngle 80 //degrees
 //-----------------
 
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
@@ -56,7 +57,7 @@ void setup() {
  
   stepMotor.connectToPins(9, 10, 11, 12);
   stepMotor.setSpeedInStepsPerSecond(1024);
-  stepMotor.setAccelerationInStepsPerSecondPerSecond(1024);
+  stepMotor.setAccelerationInStepsPerSecondPerSecond(512);
   stepMotor.disableMotor();
   stepMotor.setCurrentPositionInSteps(0);
   Serial.println("Step motor configureation complete");
@@ -79,13 +80,13 @@ void setup() {
 }
 
 void moveServo(int pin, bool up) {
-  btnDebounce[pin] = (up ? 1 : -1)*millis();
-  if (servoMotors[pin].read() != (int)up*90) {
-    Serial.print("Servo ");
+  if (servoMotors[pin].read() != (int)up*servoAngle) {
+    btnDebounce[pin] = (up ? 1 : -1)*millis();
+    /*Serial.print("Servo ");
     Serial.print(pin+servoStartPin);
     Serial.print(" ");
-    Serial.println((int)up*90);
-    servoMotors[pin].write((int)up*90);
+    Serial.println((int)up*servoAngle);*/
+    servoMotors[pin].write((int)up*servoAngle);
   }
 }
 
@@ -120,8 +121,8 @@ void reset(bool timeout) {
   userControlled = false;
 
   digitalWrite(signalOutPin, LOW); //Send out signal
-  //display.clearDisplay();
-  //display.setCursor(20, 22);
+  display.clearDisplay();
+  display.setCursor(20, 22);
 
   if (stepMotor.getCurrentPositionInSteps() != 0) { //Reset elevator
     Serial.println("Resetting elevator");
@@ -138,10 +139,14 @@ void reset(bool timeout) {
       moveServo(i, true);
     }
    
-    while(analogRead(lightSensorPin) < initBrightness*lightSensorSensitivity) {
+    Serial.println(initBrightness*lightSensorSensitivity);
+    Serial.println(analogRead(lightSensorPin));
+    while(analogRead(lightSensorPin) < 90) {//initBrightness*lightSensorSensitivity) {
       Serial.println(analogRead(lightSensorPin));
       delay(100);
     }
+    Serial.println(analogRead(lightSensorPin));
+    Serial.println("Ball detected");
   }
 
   for (int i=0; i<4; i++) {
@@ -186,7 +191,7 @@ void reset(bool timeout) {
 
 void loop() {
   u_int32_t startTime = micros();
-  //Serial.println(analogRead(lightSensorPin));
+  Serial.println(analogRead(lightSensorPin));
   //Kolla in signal
   if (digitalRead(signalInPin) == HIGH || reactivated == true) {
     if (active == true && reactivated == false && millis()-lastSignalInState >= 5000) {
@@ -200,7 +205,7 @@ void loop() {
       active = true; //Activate
       elevatorCycle = 0;
       stepMotor.setCurrentPositionInSteps(0);
-      stepMotor.setupMoveInSteps(2048*11);
+      stepMotor.setupMoveInSteps(1024*25);
       display.clearDisplay();
       display.setCursor(20, 22);
       display.println("Get ready...");
@@ -208,7 +213,7 @@ void loop() {
     }
   }
 
-  //Hissförflyttning
+  //Elevator movement
   if (active == true) {
     if(!stepMotor.motionComplete()) {
       //Serial.println(stepMotor.getCurrentPositionInSteps());
@@ -217,15 +222,18 @@ void loop() {
         userControlled = true;
       }
     } else if (elevatorCycle < 2) {
-      elevatorCycle++;
-      if (elevatorCycle == 1 && analogRead(lightSensorPin) < initBrightness*lightSensorSensitivity) { //Elevator is up
+      Serial.println(analogRead(lightSensorPin));
+      Serial.println(initBrightness*lightSensorSensitivity);
+      if (elevatorCycle == 0 && analogRead(lightSensorPin) < 90) {//initBrightness*lightSensorSensitivity) { //Elevator is up
+        elevatorCycle++;
         Serial.println("Move elevator down");
-        stepMotor.setupMoveInSteps(-2048*11);
+        stepMotor.setupMoveInSteps(0);
         display.clearDisplay();
         display.setCursor(20, 22);
         display.println("GO!");
         display.display();
-      } else if (elevatorCycle == 2) { //Elevator is down
+      } else if (elevatorCycle == 1) { //Elevator is down
+        elevatorCycle++;
         Serial.println("Elevator finished");
         stepMotor.setCurrentPositionInSteps(0);
         stepMotor.disableMotor();
@@ -233,7 +241,7 @@ void loop() {
     }
   }
 
-  //Kolla knappar
+  //Check buttons
   if (active == true && userControlled == true) {
     for (int i=0; i<4; i++) {
       int btnState = digitalRead(i+btnStartPin);
@@ -258,8 +266,8 @@ void loop() {
     }
   }
   //Read light signal
-  if (active == true && elevatorCycle >= 2 && analogRead(lightSensorPin) >= initBrightness*lightSensorSensitivity) { //Användaren har fått kulan till hissen
-    Serial.println(initBrightness);
+  if (active == true && elevatorCycle >= 2 && analogRead(lightSensorPin) >= 90) {//initBrightness*(lightSensorSensitivity+.05)) { //Användaren har fått kulan till hissen
+    Serial.println(initBrightness*(lightSensorSensitivity+.05));
     Serial.println(analogRead(lightSensorPin));
     reset(false);
   }
@@ -277,7 +285,11 @@ void loop() {
     initBrightness = analogRead(lightSensorPin);
     if (digitalRead(btnStartPin) == HIGH && digitalRead(btnStartPin+1) == HIGH && digitalRead(btnStartPin+2) == HIGH && digitalRead(btnStartPin+3) == HIGH) {
       for (int i=0; i<4; i++) {
-        moveServo(i, false);
+        servoMotors[i].write(servoAngle);
+      }
+      delay(5000);
+      for (int i=0; i<4; i++) {
+        servoMotors[i].write(0);
       }
     } else if (digitalRead(btnStartPin) == HIGH && digitalRead(btnStartPin+1) == HIGH) {
       stepMotor.moveRelativeInSteps(2048);
