@@ -9,7 +9,7 @@ Underhållsfunktioner:
 - I icke-aktivt läge:
   - Kan de två översta knapparna tryckas ner samtidigt för att hissen ska flytta upp
   - Kan de två nedersta knapparna tryckas ner samtidigt för att hissen ska flytta ner
-- I fall servomotorerna fastnar kan alla knappar tryckas ner för att servomotorerna ska - flytta till uppåt och sedan neråt position
+  - Kan alla knappar tryckas ner samtidigt för att servomotorerna ska flytta till uppåt och sedan neråt position
 
 Hur koden fungerar generellt:
 
