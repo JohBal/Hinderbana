@@ -8,9 +8,10 @@
 #define lightSensorPin 23
 #define servoStartPin 14
 #define btnStartPin 4
-#define lightSensorSensitivity 0.85 //UNUSED
+#define lightSensorSensitivity 1.02 //UNUSED
+#define lightIntensity 968
 #define timeoutTime 40000 //ms
-#define servoAngle 80 //degrees
+#define servoAngle 70 //degrees
 //-----------------
 
 Adafruit_SSD1306 display(128, 64, &Wire, -1);
@@ -21,12 +22,13 @@ bool active = false;
 bool userControlled = false;
 int elevatorCycle = 0; //0=down, 1=up, 2=down
 u_int32_t timer = 0;
-int initBrightness = 0;
+int initBrightness = 0; //UNUSED //Darkest brightness when no ball should be detected
 u_int32_t lastSignalInState = 0;
 int32_t btnDebounce[4] = {0,0,0,0};
 int btnLastState[4] = {0,0,0,0};
-u_int32_t highscore = timeoutTime*2000; //microsec, lower value = better score
+u_int32_t highscore = timeoutTime*2000; //microsec, lower value = better score, as score is the time it took
 bool reactivated = false;
+bool ballDetected = false;
 
 void setup() {
   //STEPMOTOR
@@ -55,14 +57,15 @@ void setup() {
   //display.cp437(true);
   display.display();
  
+  //SETUP STEPMOTOR
   stepMotor.connectToPins(9, 10, 11, 12);
   stepMotor.setSpeedInStepsPerSecond(1024);
   stepMotor.setAccelerationInStepsPerSecondPerSecond(512);
   stepMotor.disableMotor();
   stepMotor.setCurrentPositionInSteps(0);
-  Serial.println("Step motor configureation complete");
+  //Serial.println("Step motor configureation complete");
 
-  //SERVOMOTOR + BUTTONS
+  //SERVOMOTORS + BUTTONS
   for (int i=0; i<4; i++) {
     pinMode(i+servoStartPin, OUTPUT);
     pinMode(i+btnStartPin, INPUT);
@@ -74,6 +77,7 @@ void setup() {
   Serial.print("Initial brightness: ");
   Serial.println(initBrightness);
 
+  delay(2000);
   //Show that setup is complete
   display.clearDisplay();
   display.display();
@@ -109,7 +113,7 @@ void updateTimerDisplay(uint32_t time, String prefix) {
   String timerStr = prefix + secStr + " : " + msStr;
 
   display.clearDisplay();
-  display.setCursor(20, 22);
+  display.setCursor(20, 5);
   display.println(timerStr);
   display.display();
 }
@@ -122,17 +126,17 @@ void reset(bool timeout) {
 
   digitalWrite(signalOutPin, LOW); //Send out signal
   display.clearDisplay();
-  display.setCursor(20, 22);
 
   if (stepMotor.getCurrentPositionInSteps() != 0) { //Reset elevator
     Serial.println("Resetting elevator");
     Serial.println(stepMotor.getCurrentPositionInSteps());
-    stepMotor.moveToPositionInSteps(0); //Motor disables at end of function
+    stepMotor.moveToPositionInSteps(0); //Motor disables at end of reset function
     stepMotor.setCurrentPositionInSteps(0);
   }
 
 
   if (timeout == true) { //Wait until the ball reaches the elevator
+    display.setCursor(20, 5);
     display.println("You failed!");
     display.display();
     for (int i=0; i<4; i++) {
@@ -141,8 +145,8 @@ void reset(bool timeout) {
    
     Serial.println(initBrightness*lightSensorSensitivity);
     Serial.println(analogRead(lightSensorPin));
-    while(analogRead(lightSensorPin) < 90) {//initBrightness*lightSensorSensitivity) {
-      Serial.println(analogRead(lightSensorPin));
+    while(analogRead(lightSensorPin) < lightIntensity) {//initBrightness*lightSensorSensitivity) {
+      //Serial.println(analogRead(lightSensorPin));
       delay(100);
     }
     Serial.println(analogRead(lightSensorPin));
@@ -155,11 +159,11 @@ void reset(bool timeout) {
 
   if (timeout == false) { //Show time if user succeeded
     updateTimerDisplay(timer, "Your time: "); //Text is in english because åäö is wrongly desplayed (even with cp437)
-    delay(4000);
+    delay(6000);
     if (timer < highscore) {
       highscore = timer;
       display.clearDisplay();
-      display.setCursor(0, 22);
+      display.setCursor(0, 5);
       display.println("You bet the highscore!");
       display.display();
     } else {
@@ -173,7 +177,7 @@ void reset(bool timeout) {
  
 
   digitalWrite(signalOutPin, HIGH);
-  delay(3000);
+  delay(4000);
   display.clearDisplay();
   display.display();
 
@@ -182,6 +186,7 @@ void reset(bool timeout) {
     btnLastState[i] = 0;
   }
   stepMotor.disableMotor();
+  ballDetected = false;
   elevatorCycle = 0;
   timer = 0;
   active = false;
@@ -191,7 +196,7 @@ void reset(bool timeout) {
 
 void loop() {
   u_int32_t startTime = micros();
-  Serial.println(analogRead(lightSensorPin));
+  //Serial.println(analogRead(lightSensorPin));
   //Kolla in signal
   if (digitalRead(signalInPin) == HIGH || reactivated == true) {
     if (active == true && reactivated == false && millis()-lastSignalInState >= 5000) {
@@ -207,7 +212,7 @@ void loop() {
       stepMotor.setCurrentPositionInSteps(0);
       stepMotor.setupMoveInSteps(1024*25);
       display.clearDisplay();
-      display.setCursor(20, 22);
+      display.setCursor(20, 5);
       display.println("Get ready...");
       display.display();
     }
@@ -218,18 +223,19 @@ void loop() {
     if(!stepMotor.motionComplete()) {
       //Serial.println(stepMotor.getCurrentPositionInSteps());
       stepMotor.processMovement();
-      if (stepMotor.getCurrentPositionInSteps() <= 1024 && elevatorCycle == 0) {
+      if (stepMotor.getCurrentPositionInSteps() <= 2048*4 && elevatorCycle == 0) {
         userControlled = true;
       }
     } else if (elevatorCycle < 2) {
       Serial.println(analogRead(lightSensorPin));
-      Serial.println(initBrightness*lightSensorSensitivity);
-      if (elevatorCycle == 0 && analogRead(lightSensorPin) < 90) {//initBrightness*lightSensorSensitivity) { //Elevator is up
+      //Serial.println(initBrightness*lightSensorSensitivity);
+      if (analogRead(lightSensorPin) >= lightIntensity) {ballDetected = true;}
+      if (elevatorCycle == 0 && analogRead(lightSensorPin) < lightIntensity-20 && ballDetected == true) {//initBrightness*lightSensorSensitivity) { //Elevator is up
         elevatorCycle++;
         Serial.println("Move elevator down");
         stepMotor.setupMoveInSteps(0);
         display.clearDisplay();
-        display.setCursor(20, 22);
+        display.setCursor(40, 22);
         display.println("GO!");
         display.display();
       } else if (elevatorCycle == 1) { //Elevator is down
@@ -266,8 +272,8 @@ void loop() {
     }
   }
   //Read light signal
-  if (active == true && elevatorCycle >= 2 && analogRead(lightSensorPin) >= 90) {//initBrightness*(lightSensorSensitivity+.05)) { //Användaren har fått kulan till hissen
-    Serial.println(initBrightness*(lightSensorSensitivity+.05));
+  if (active == true && elevatorCycle >= 2 && analogRead(lightSensorPin) >= lightIntensity) {//initBrightness*(2-lightSensorSensitivity)) { //Användaren har fått kulan till hissen
+    //Serial.println(initBrightness*(2-lightSensorSensitivity));
     Serial.println(analogRead(lightSensorPin));
     reset(false);
   }
@@ -282,7 +288,7 @@ void loop() {
     intervallTimer = 0;*/
     timer += (micros()-startTime);
   } else if (active == false && intervallTimer >= 1000) { //Maintenance functions
-    initBrightness = analogRead(lightSensorPin);
+    //initBrightness = analogRead(lightSensorPin);
     if (digitalRead(btnStartPin) == HIGH && digitalRead(btnStartPin+1) == HIGH && digitalRead(btnStartPin+2) == HIGH && digitalRead(btnStartPin+3) == HIGH) {
       for (int i=0; i<4; i++) {
         servoMotors[i].write(servoAngle);
