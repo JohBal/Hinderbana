@@ -6,16 +6,15 @@ Bibliotek:
 - Servo@1.2.2
 
 Underhållsfunktioner:
-I icke-aktivt läge:
+I icke-aktivt läge:\n
   Kan de två översta knapparna tryckas ner samtidigt för att hissen ska flytta upp
   Kan de två nedersta knapparna tryckas ner samtidigt för att hissen ska flytta ner
-  <s>Uppdateras basljusnivån automatisk varje sekund ifall ljusförhållanderna skulle förändras (se dock till att ljussensorn inte får för mycket smuts över sig)</s>
 I fall servomotorerna fastnar kan alla knappar tryckas ner för att servomotorerna ska flytta till uppåt och sedan neråt position
 
-Hur koden fungerar:
+Hur koden fungerar generellt:
 Får aktiv signal
 Flyttar hissen upp
-Aktiverar servomotorerna
+Låter användaren använda servomotorerna
 Väntar tills bollen rullat av
 Flyttar hissen ner
 Väntar tills timer når 40 s eller ljussensorn får hög signal
