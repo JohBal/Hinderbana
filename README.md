@@ -12,18 +12,21 @@ Underhållsfunktioner:
 - I fall servomotorerna fastnar kan alla knappar tryckas ner för att servomotorerna ska - flytta till uppåt och sedan neråt position
 
 Hur koden fungerar generellt:
-Får aktiv signal
-Flyttar hissen upp
-Låter användaren använda servomotorerna
-Väntar tills bollen rullat av
-Flyttar hissen ner
-Väntar tills timer når 40 s eller ljussensorn får hög signal
-Låser servomoterna
+
+- Får aktiv signal
+- Flyttar hissen upp
+- Låter användaren använda servomotorerna
+- Väntar tills bollen rullat av
+- Flyttar hissen ner
+- Väntar tills timer når 40 s eller ljussensorn får hög signal
+- Låser servomoterna
+
 
 Nuvarande problem:
-Utåt sladdarna är mycket korta
-Hissen kan lätt fastna
-Sladdarna bakom knappanordningen kan blockera hissen
-OLED skärmen har slutat fungera
-Det översta hindret måste flyttas ner
-(Ev.) Den översta banan måste omplaceras
+- Utåt sladdarna är mycket korta
+- Hissen kan lätt fastna
+- Sladdarna bakom knappanordningen kan blockera hissen
+- OLED skärmen fastnar ibland på en bild
+- Det översta hindret måste flyttas ner
+- (Ev.) Den översta banan måste omplaceras
+- (Ev.) Objecktet som ska trycka ut bollen måste göras om
